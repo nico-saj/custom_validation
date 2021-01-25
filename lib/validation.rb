@@ -1,4 +1,4 @@
-module Vaildation
+module Validation
   def self.included base
     base.extend(ClassMethods)
   end
@@ -6,7 +6,9 @@ module Vaildation
   module ClassMethods
     private
 
-    @@validations = {}
+    def self.validations
+      @validations ||= {}
+    end
 
     VALIDATION_TYPES = {
       presence: :boolean,
@@ -17,7 +19,7 @@ module Vaildation
     def validate attribute_name, options
       raise AttributeNameError.new unless attribute_name.is_a?(Symbol)
       validate_options(options)
-      @@validations[attribute_name] = (@@validations[attribute_name] || {}).merge(options)
+      ClassMethods.validations[attribute_name] = (ClassMethods.validations[attribute_name] || {}).merge(options)
     end
 
     def validate_options(options)
@@ -29,19 +31,19 @@ module Vaildation
         when :boolean
           raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value == !!validation_value
         when :regexp
-          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Regwxp)
+          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Regexp)
         when :class
           raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Class)
+        end
       end
     end
   end
 
-  private
-
-  attr_accessor :errors
+  attr_reader :errors
 
   def validate!
     validate_entity
+    raise ValidationError.new(errors: errors) if errors.any?
   end
 
   def valid?
@@ -49,10 +51,12 @@ module Vaildation
     errors.empty?
   end
 
+  private
+
   def validate_entity
     @errors = {}
 
-    @@validations.each do |attribute_name, options|
+    ClassMethods.validations.each do |attribute_name, options|
       options.each do |validation_type, validation_value|
         unless current_valid?(attribute_name, validation_type, validation_value)
           error_msg = case validation_type
@@ -62,6 +66,7 @@ module Vaildation
                         "has to match #{validation_value.inspect}"
                       when :type
                         "has to be an instance of #{validation_value.name}"
+                      end
           @errors = @errors.merge(attribute_name => (@errors[attribute_name] || []).push(error_msg))
         end
       end
@@ -73,9 +78,10 @@ module Vaildation
     when :presence
       validation_value ? present?(public_send(attribute_name)) : true
     when :format
-      public_send(attribute_name).match(validation_value)
+      public_send(attribute_name).match?(validation_value)
     when :type
       public_send(attribute_name).instance_of?(validation_value)
+    end
   end
 
   def present?(value)
