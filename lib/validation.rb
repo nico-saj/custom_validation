@@ -14,31 +14,29 @@ module Vaildation
       type: :class
     }.freeze
 
-    VALIDATION_ERROR_MESSAGES = {
-      presence: ''
-    }
-
     def validate attribute_name, options
-      raise StandardError.new('Attribute name has to be an instance of Symbol class') unless attribute_name.is_a?(Symbol)
+      raise AttributeNameError.new unless attribute_name.is_a?(Symbol)
       validate_options(options)
       @@validations[attribute_name] = (@@validations[attribute_name] || {}).merge(options)
     end
 
     def validate_options(options)
-      raise StandardError.new("Validation type hasn't been found. Available validation types: #{VALIDATION_TYPES.keys}") if (options.keys - VALIDATION_TYPES.keys).any?
+      raise ValidationTypeError.new(validation_types: VALIDATION_TYPES.keys) if (options.keys - VALIDATION_TYPES.keys).any?
 
       options.each do |validation_type, validation_value|
         validation = VALIDATION_TYPES[validation_type]
         case validation
         when :boolean
-          raise StandardError.new("Validation type #{validation_type} has to have a #{validation} value") unless validation_value == !!validation_value
+          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value == !!validation_value
         when :regexp
-          raise StandardError.new("Validation type #{validation_type} has to have a #{validation} value") unless validation_value.instance_of?(Regwxp)
+          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Regwxp)
         when :class
-          raise StandardError.new("Validation type #{validation_type} has to have a #{validation} value") unless validation_value.instance_of?(Class)
+          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Class)
       end
     end
   end
+
+  private
 
   attr_accessor :errors
 
