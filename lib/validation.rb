@@ -19,22 +19,24 @@ module Validation
     def validate attribute_name, options
       raise AttributeNameError.new unless attribute_name.is_a?(Symbol)
       validate_options(options)
+
       ClassMethods.validations[attribute_name] = (ClassMethods.validations[attribute_name] || {}).merge(options)
     end
 
     def validate_options(options)
-      raise ValidationTypeError.new(validation_types: VALIDATION_TYPES.keys) if (options.keys - VALIDATION_TYPES.keys).any?
+      if (options.keys - VALIDATION_TYPES.keys).any?
+        raise ValidationTypeError.new(validation_types: VALIDATION_TYPES.keys)
+      end
 
       options.each do |validation_type, validation_value|
         validation = VALIDATION_TYPES[validation_type]
-        case validation
-        when :boolean
-          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value == !!validation_value
-        when :regexp
-          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Regexp)
-        when :class
-          raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless validation_value.instance_of?(Class)
+        valid = case validation
+        when :boolean then validation_value == !!validation_value
+        when :regexp then validation_value.instance_of?(Regexp)
+        when :class then validation_value.instance_of?(Class)
         end
+
+        raise ValidationValueError.new(validation_type: validation_type, validation: validation) unless valid
       end
     end
   end
@@ -60,12 +62,9 @@ module Validation
       options.each do |validation_type, validation_value|
         unless current_valid?(attribute_name, validation_type, validation_value)
           error_msg = case validation_type
-                      when :presence
-                        "can't be blank"
-                      when :format
-                        "has to match #{validation_value.inspect}"
-                      when :type
-                        "has to be an instance of #{validation_value.name}"
+                      when :presence then "can't be blank"
+                      when :format then "has to match #{validation_value.inspect}"
+                      when :type then "has to be an instance of #{validation_value.name}"
                       end
           @errors = @errors.merge(attribute_name => (@errors[attribute_name] || []).push(error_msg))
         end
@@ -75,12 +74,9 @@ module Validation
 
   def current_valid?(attribute_name, validation_type, validation_value)
     case validation_type
-    when :presence
-      validation_value ? present?(public_send(attribute_name)) : true
-    when :format
-      public_send(attribute_name).match?(validation_value)
-    when :type
-      public_send(attribute_name).instance_of?(validation_value)
+    when :presence then validation_value ? present?(public_send(attribute_name)) : true
+    when :format then public_send(attribute_name).match?(validation_value)
+    when :type then public_send(attribute_name).instance_of?(validation_value)
     end
   end
 
