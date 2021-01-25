@@ -75,7 +75,7 @@ module Validation
   def current_valid?(attribute_name, validation_type, validation_value)
     case validation_type
     when :presence then validation_value ? present?(public_send(attribute_name)) : true
-    when :format then public_send(attribute_name).match?(validation_value)
+    when :format then public_send(attribute_name)&.match?(validation_value)
     when :type then public_send(attribute_name).instance_of?(validation_value)
     end
   end
